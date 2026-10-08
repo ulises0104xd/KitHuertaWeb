@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin - Pedidos</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Admin - Pedidos</h1>
+  <nav><a href="/">Volver a la tienda</a></nav>
+  <label>Clave <input id="key" type="password"></label>
+  <button onclick="cargar()">Ver pedidos</button>
+  <p id="msg" class="error"></p>
+  <div id="lista"></div>
+
+  <script>
+    const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+    const clave = () => encodeURIComponent(document.getElementById('key').value);
+
+    async function cargar() {
+      const r = await fetch('/api/admin/pedidos?key=' + clave());
+      const d = await r.json();
+      document.getElementById('msg').textContent = r.ok ? '' : d.error;
+      if (!r.ok) return;
+      const total = d.reduce((s, p) => s + p.total, 0);
+      document.getElementById('lista').innerHTML = `<p>${d.length} pedidos - Ventas: $${total}</p>
+        <table><tr><th>#</th><th>Fecha</th><th>Cliente</th><th>Kits</th><th>Total</th><th>Estado</th></tr>
+        ${d.map(p => `<tr><td>${p.id}</td><td>${p.fecha}</td>
+          <td>${esc(p.cliente)}<br>${esc(p.email)}<br>${esc(p.direccion)}</td>
+          <td>${p.items.map(i => i.cantidad + "x " + esc(i.nombre)).join('<br>')}</td>
+          <td>$${p.total}</td>
+          <td><select onchange="estado(${p.id}, this.value)">
+            ${['pendiente', 'enviado', 'entregado'].map(e => `<option ${e === p.estado ? 'selected' : ''}>${e}</option>`).join('')}
+          </select></td></tr>`).join('')}</table>`;
+    }
+    async function estado(id, estado) {
+      await fetch(`/api/admin/pedidos/${id}?key=${clave()}`, { method: 'PUT', body: JSON.stringify({ estado }) });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kit de Huerto Urbano</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700&family=Rubik:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1><a href="/" class="logo-link">Kit de Huerto Urbano</a></h1>
+  <nav>
+    <a href="#" onclick="return ver('catalogo')">Catalogo</a>
+    <a href="#" id="nav-carrito" onclick="return ver('carrito')">Carrito (<span id="cuenta">0</span>)</a>
+    <a href="#" id="nav-panel" onclick="return ver('panel')" hidden>Mi panel</a>
+    <span class="espacio"></span>
+    <a href="/" id="nav-entrar">Entrar / Registrarme</a>
+    <span id="saludo" hidden></span>
+    <a href="#" id="nav-salir" onclick="return salir()" hidden>Salir</a>
+  </nav>
+  <p id="aviso" class="error"></p>
+
+  <!-- CATALOGO -->
+  <section id="catalogo">
+    <div class="hero">
+      <p><b>Cultiva tus propias hierbas en casa, sin saber nada.</b></p>
+      <p>Cada kit incluye: 🌰 semillas + 🪴 tierra preparada + ♻️ maceta biodegradable + 📖 guia paso a paso.</p>
+    </div>
+    <div id="lista">Cargando...</div>
+  </section>
+
+  <!-- CARRITO -->
+  <section id="carrito" hidden>
+    <h2>Tu carrito</h2>
+    <div id="items"></div>
+    <p><b>Total: $<span id="total">0</span></b></p>
+    <div class="caja" id="formulario">
+      <h3>Datos de entrega</h3>
+      <div id="pide-login" hidden>Para comprar necesitas una <b>cuenta de comprador</b>.
+        <button onclick="location.href='/'">Entrar / Registrarme</button></div>
+      <div id="form-compra">
+        <label>Nombre <input id="cliente"></label>
+        <label>Direccion <textarea id="direccion" rows="2"></textarea></label>
+        <button onclick="comprar()">Realizar pedido</button>
+      </div>
+      <p id="msg"></p>
+    </div>
+  </section>
+
+  <!-- PANEL DEL VENDEDOR -->
+  <section id="panel" hidden>
+    <h2>Mi panel de vendedor</h2>
+    <div class="caja">
+      <h3 id="f-titulo">Publicar un kit nuevo</h3>
+      <label>Nombre del kit <input id="f-nombre" maxlength="100"></label>
+      <label>Descripcion / que incluye <textarea id="f-desc" rows="3" maxlength="600"></textarea></label>
+      <div class="dos-col">
+        <label>Precio ($) <input id="f-precio" type="number" min="1" step="0.01"></label>
+        <label>Stock (piezas) <input id="f-stock" type="number" min="0" step="1"></label>
+      </div>
+      <label>Imagen (PNG, JPG o WEBP, max. 1.5 MB) <input id="f-img" type="file" accept="image/png,image/jpeg,image/webp"></label>
+      <img id="f-prev" class="prev" alt="" hidden>
+      <button onclick="guardarKit()" id="f-boton">Publicar kit</button>
+      <button onclick="limpiarForm()" id="f-cancelar" class="sec" hidden>Cancelar edicion</button>
+      <p id="f-msg"></p>
+    </div>
+
+    <h3>Mis kits</h3>
+    <div id="mis-kits">Cargando...</div>
+
+    <h3>Mis ventas</h3>
+    <div id="mis-ventas">Cargando...</div>
+  </section>
+
+  <script>
+    let productos = [];
+    let yo = null;
+    let misKits = [];
+    let editandoId = null;
+    let imagenNueva = null; // dataURL
+    let carrito = JSON.parse(localStorage.getItem('carrito') || '[]'); // [{id, cantidad}]
+
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    async function api(url, metodo = 'GET', body) {
+      const r = await fetch(url, { method: metodo, body: body ? JSON.stringify(body) : undefined });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'Error');
+      return d;
+    }
+
+    // ---------- Navegacion ----------
+    const VISTAS = ['catalogo', 'carrito', 'panel'];
+    function ver(id) {
+      if (id === 'panel' && yo?.rol !== 'vendedor') id = 'catalogo';
+      VISTAS.forEach(v => $(v).hidden = v !== id);
+      $('aviso').textContent = '';
+      if (id === 'carrito') pintarCarrito();
+      if (id === 'panel') cargarPanel();
+      return false;
+    }
+
+    // ---------- Sesion ----------
+    function pintarSesion() {
+      $('nav-entrar').hidden = !!yo;
+      $('nav-salir').hidden = !yo;
+      $('saludo').hidden = !yo;
+      $('nav-panel').hidden = yo?.rol !== 'vendedor';
+      $('nav-carrito').hidden = yo?.rol === 'vendedor';
+      if (yo) $('saludo').textContent = `Hola, ${yo.nombre} (${yo.rol})`;
+      $('pide-login').hidden = yo?.rol === 'comprador';
+      $('form-compra').hidden = yo?.rol !== 'comprador';
+      if (yo?.rol === 'comprador' && !$('cliente').value) $('cliente').value = yo.nombre;
+    }
+    async function iniciar() {
+      yo = await api('/api/yo');
+      pintarSesion();
+    }
+    async function salir() {
+      await api('/api/logout', 'POST');
+      location.href = '/';
+      return false;
+    }
+
+    // ---------- Catalogo y carrito (comprador) ----------
+    function guardar() {
+      localStorage.setItem('carrito', JSON.stringify(carrito));
+      $('cuenta').textContent = carrito.reduce((s, i) => s + i.cantidad, 0);
+    }
+    function agregar(id) {
+      if (yo?.rol === 'vendedor') { $('aviso').textContent = 'Las cuentas de vendedor no pueden comprar.'; return; }
+      const it = carrito.find(i => i.id === id);
+      it ? it.cantidad++ : carrito.push({ id, cantidad: 1 });
+      guardar();
+    }
+    function quitar(id) {
+      carrito = carrito.filter(i => i.id !== id);
+      guardar(); pintarCarrito();
+    }
+    function pintarCarrito() {
+      let total = 0;
+      carrito = carrito.filter(i => productos.some(p => p.id === i.id)); // quita kits retirados
+      const filas = carrito.map(i => {
+        const p = productos.find(p => p.id === i.id);
+        total += p.precio * i.cantidad;
+        return `<tr><td>${esc(p.nombre)}</td><td>${i.cantidad}</td><td>$${p.precio * i.cantidad}</td>
+          <td><button onclick="quitar(${p.id})">Quitar</button></td></tr>`;
+      }).join('');
+      $('items').innerHTML = carrito.length
+        ? `<table><tr><th>Kit</th><th>Cant.</th><th>Subtotal</th><th></th></tr>${filas}</table>`
+        : '<p>El carrito esta vacio.</p>';
+      $('total').textContent = total;
+      guardar();
+    }
+    async function comprar() {
+      const msg = $('msg');
+      try {
+        const d = await api('/api/pedidos', 'POST', {
+          cliente: $('cliente').value, direccion: $('direccion').value,
+          items: carrito.map(i => ({ producto_id: i.id, cantidad: i.cantidad }))
+        });
+        carrito = []; guardar(); pintarCarrito();
+        $('formulario').innerHTML = `<p class="ok">Pedido #${d.id} recibido. Total: $${d.total}. Gracias!</p>`;
+        cargar();
+      } catch (e) { msg.className = 'error'; msg.textContent = e.message; }
+    }
+    function imgHtml(p) {
+      return p.imagen
+        ? `<img class="foto-img" src="${esc(p.imagen)}" alt="${esc(p.nombre)}">`
+        : `<div class="foto">${p.nombre.includes('Combo') ? '🌿' : '🌱'}</div>`;
+    }
+    async function cargar() {
+      productos = await api('/api/productos');
+      $('lista').innerHTML = productos.map(p => `
+        <div class="producto">
+          ${imgHtml(p)}
+          <div class="nombre">${esc(p.nombre)}</div>
+          <div class="precio">$${p.precio}</div>
+          <div>${esc(p.descripcion)}</div>
+          <small>Vende: ${esc(p.vendedor)} · Disponibles: ${p.stock}</small>
+          <button onclick="agregar(${p.id})" ${p.stock < 1 ? 'disabled' : ''}>Agregar al carrito</button>
+        </div>`).join('') || '<p>Aun no hay kits.</p>';
+      guardar();
+    }
+
+    // ---------- Panel del vendedor ----------
+    $('f-img').addEventListener('change', e => {
+      const f = e.target.files[0];
+      imagenNueva = null; $('f-prev').hidden = true;
+      if (!f) return;
+      if (f.size > 1.5e6) { $('f-msg').className = 'error'; $('f-msg').textContent = 'La imagen pesa mas de 1.5 MB'; e.target.value = ''; return; }
+      const fr = new FileReader();
+      fr.onload = () => { imagenNueva = fr.result; $('f-prev').src = fr.result; $('f-prev').hidden = false; };
+      fr.readAsDataURL(f);
+    });
+    function limpiarForm() {
+      editandoId = null; imagenNueva = null;
+      ['f-nombre', 'f-desc', 'f-precio', 'f-stock', 'f-img'].forEach(id => $(id).value = '');
+      $('f-prev').hidden = true; $('f-msg').textContent = '';
+      $('f-titulo').textContent = 'Publicar un kit nuevo';
+      $('f-boton').textContent = 'Publicar kit'; $('f-cancelar').hidden = true;
+    }
+    function editarKit(id) {
+      const k = misKits.find(k => k.id === id);
+      editandoId = id; imagenNueva = null;
+      $('f-nombre').value = k.nombre; $('f-desc').value = k.descripcion || '';
+      $('f-precio').value = k.precio; $('f-stock').value = k.stock; $('f-img').value = '';
+      $('f-prev').src = k.imagen || ''; $('f-prev').hidden = !k.imagen;
+      $('f-titulo').textContent = 'Editando: ' + k.nombre;
+      $('f-boton').textContent = 'Guardar cambios'; $('f-cancelar').hidden = false;
+      $('f-msg').textContent = '';
+      scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    async function guardarKit() {
+      const body = {
+        nombre: $('f-nombre').value, descripcion: $('f-desc').value,
+        precio: $('f-precio').value, stock: $('f-stock').value, imagen: imagenNueva
+      };
+      try {
+        editandoId ? await api('/api/productos/' + editandoId, 'PUT', body) : await api('/api/productos', 'POST', body);
+        limpiarForm();
+        $('f-msg').className = 'ok'; $('f-msg').textContent = 'Kit guardado';
+        cargarPanel(); cargar();
+      } catch (e) { $('f-msg').className = 'error'; $('f-msg').textContent = e.message; }
+    }
+    async function retirarKit(id) {
+      if (!confirm('Retirar este kit de la tienda?')) return;
+      await api('/api/productos/' + id, 'DELETE');
+      if (editandoId === id) limpiarForm();
+      cargarPanel(); cargar();
+    }
+    async function cargarPanel() {
+      misKits = await api('/api/mis-productos');
+      $('mis-kits').innerHTML = misKits.length ? `<table>
+        <tr><th></th><th>Kit</th><th>Precio</th><th>Stock</th><th></th></tr>
+        ${misKits.map(k => `<tr>
+          <td>${k.imagen ? `<img class="mini" src="${esc(k.imagen)}" alt="">` : '🌱'}</td>
+          <td>${esc(k.nombre)}</td><td>$${k.precio}</td><td>${k.stock}</td>
+          <td><button onclick="editarKit(${k.id})">Editar</button>
+              <button class="sec" onclick="retirarKit(${k.id})">Retirar</button></td></tr>`).join('')}
+        </table>` : '<p>Aun no has publicado kits.</p>';
+
+      const ventas = await api('/api/mis-ventas');
+      $('mis-ventas').innerHTML = ventas.length ? `<table>
+        <tr><th>Pedido</th><th>Fecha</th><th>Kit</th><th>Cant.</th><th>Comprador / entrega</th><th>Estado</th></tr>
+        ${ventas.map(v => `<tr><td>#${v.pedido}</td><td>${esc(v.fecha)}</td><td>${esc(v.nombre)}</td>
+          <td>${v.cantidad}</td><td>${esc(v.cliente)}<br>${esc(v.email)}<br>${esc(v.direccion)}</td>
+          <td>${esc(v.estado)}</td></tr>`).join('')}
+        </table>` : '<p>Todavia no tienes ventas.</p>';
+    }
+
+    iniciar().then(() => { cargar(); if (location.hash === '#panel') ver('panel'); });
+  </script>
+</body>
+</html>

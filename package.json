@@ -1,0 +1,6 @@
+{
+  "name": "kit-huerto-urbano",
+  "version": "0.1.0",
+  "description": "Sprint 1 - PMV tienda en linea del Kit de Huerto Urbano para Principiantes",
+  "scripts": { "start": "node server.js" }
+}

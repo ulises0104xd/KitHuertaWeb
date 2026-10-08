@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Entrar - Kit de Huerto Urbano</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700&family=Rubik:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primario: #047857;       /* verde (texto blanco = 5.5:1) */
+      --primario-osc: #064e3b;
+      --acento: #c2410c;         /* naranja tierra (texto blanco = 5.2:1) */
+      --fondo: #ecfdf5;
+      --tarjeta: #ffffff;
+      --texto: #064e3b;
+      --suave: #475569;
+      --borde: #a7f3d0;
+      --error: #b91c1c;
+      --radio: 14px;
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0; min-height: 100vh; min-height: 100dvh;
+      font-family: 'Nunito Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      font-size: 16px; line-height: 1.5; color: var(--texto); background: var(--fondo);
+    }
+    h1, h2, h3, .marca { font-family: Rubik, system-ui, sans-serif; }
+    svg.i { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+    .pantalla { display: grid; grid-template-columns: 1fr 1fr; min-height: 100vh; min-height: 100dvh; }
+
+    /* ---- Panel de marca ---- */
+    .marca-panel {
+      background: radial-gradient(circle at 20% 10%, #059669 0, transparent 55%), var(--primario-osc);
+      color: #fff; padding: 48px; display: flex; flex-direction: column; justify-content: center; gap: 28px;
+    }
+    .marca { display: flex; align-items: center; gap: 12px; font-size: 1.4rem; font-weight: 700; }
+    .marca .logo { width: 48px; height: 48px; border-radius: 12px; background: #fff; color: var(--primario); display: grid; place-items: center; }
+    .marca-panel h1 { font-size: clamp(1.8rem, 3.2vw, 2.8rem); line-height: 1.15; margin: 0; max-width: 16ch; }
+    .marca-panel p.sub { margin: 0; font-size: 1.1rem; max-width: 40ch; color: #d1fae5; }
+    .beneficios { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+    .beneficios li { display: flex; gap: 14px; align-items: center; }
+    .beneficios .ico { width: 44px; height: 44px; border-radius: 12px; background: rgba(255,255,255,.14); display: grid; place-items: center; }
+
+    /* ---- Panel del formulario ---- */
+    .form-panel { display: grid; place-items: center; padding: 32px 20px; }
+    .tarjeta {
+      width: 100%; max-width: 440px; background: var(--tarjeta); border: 1px solid var(--borde);
+      border-radius: 20px; padding: 28px; box-shadow: 0 10px 30px rgba(6, 78, 59, .10);
+    }
+    .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: var(--fondo); border-radius: 12px; padding: 4px; margin-bottom: 22px; }
+    .tab {
+      min-height: 44px; border: 0; border-radius: 9px; background: transparent; color: var(--primario-osc);
+      font: 700 1rem Rubik, system-ui, sans-serif; cursor: pointer; transition: background .2s, color .2s;
+    }
+    .tab[aria-selected="true"] { background: var(--primario); color: #fff; }
+    .tab:not([aria-selected="true"]):hover { background: #d1fae5; }
+
+    h2 { margin: 0 0 4px; font-size: 1.5rem; }
+    .lead { margin: 0 0 20px; color: var(--suave); }
+
+    .campo { margin-bottom: 16px; }
+    .campo > label { display: block; font-weight: 700; margin-bottom: 6px; }
+    .entrada { position: relative; }
+    input[type=text], input[type=email], input[type=password] {
+      width: 100%; min-height: 48px; padding: 10px 14px; font: inherit; color: var(--texto);
+      background: #fff; border: 1.5px solid #86b9a5; border-radius: 10px; transition: border-color .2s, box-shadow .2s;
+    }
+    input[aria-invalid="true"] { border-color: var(--error); }
+    input.con-boton { padding-right: 52px; }
+    .ojo {
+      position: absolute; right: 2px; top: 2px; width: 44px; height: 44px; border: 0; background: transparent;
+      color: var(--suave); border-radius: 8px; cursor: pointer; display: grid; place-items: center;
+    }
+    .ojo:hover { color: var(--primario); }
+    .ayuda { margin: 4px 0 0; font-size: .875rem; color: var(--suave); }
+    .err { margin: 4px 0 0; font-size: .875rem; color: var(--error); font-weight: 600; min-height: 0; }
+    .err:empty { display: none; }
+
+    :focus-visible { outline: 3px solid #f59e0b; outline-offset: 2px; }
+    input:focus-visible { outline: none; border-color: var(--primario); box-shadow: 0 0 0 3px rgba(4,120,87,.30); }
+
+    /* Selector de rol */
+    fieldset { border: 0; padding: 0; margin: 0 0 16px; }
+    legend { font-weight: 700; margin-bottom: 6px; padding: 0; }
+    .roles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .rol input { position: absolute; opacity: 0; pointer-events: none; }
+    .rol label {
+      display: flex; flex-direction: column; gap: 4px; align-items: flex-start; min-height: 88px; padding: 12px;
+      border: 1.5px solid #86b9a5; border-radius: 12px; cursor: pointer; transition: border-color .2s, background .2s;
+    }
+    .rol label strong { font-family: Rubik, system-ui, sans-serif; }
+    .rol label span { font-size: .85rem; color: var(--suave); line-height: 1.3; }
+    .rol label:hover { background: #f0fdf4; }
+    .rol input:checked + label { border-color: var(--primario); background: #d1fae5; box-shadow: 0 0 0 1px var(--primario); }
+    .rol input:focus-visible + label { outline: 3px solid #f59e0b; outline-offset: 2px; }
+
+    .boton {
+      width: 100%; min-height: 48px; border: 0; border-radius: 10px; background: var(--primario); color: #fff;
+      font: 700 1.05rem Rubik, system-ui, sans-serif; cursor: pointer; transition: background .2s, transform .1s;
+    }
+    .boton:hover { background: var(--primario-osc); }
+    .boton:active { transform: scale(.98); }
+    .boton[disabled] { background: #6b8f80; cursor: progress; }
+    .alerta {
+      margin: 0 0 16px; padding: 10px 14px; border-radius: 10px; background: #fef2f2; color: var(--error);
+      border: 1px solid #fecaca; font-weight: 600;
+    }
+    .alerta:empty { display: none; }
+    .pie { text-align: center; margin: 18px 0 0; color: var(--suave); }
+    .pie a { color: var(--primario); font-weight: 700; }
+
+    [hidden] { display: none !important; }
+
+    @media (max-width: 860px) {
+      .pantalla { grid-template-columns: 1fr; }
+      .marca-panel { padding: 24px 20px; gap: 14px; }
+      .marca-panel h1 { font-size: 1.6rem; max-width: none; }
+      .marca-panel p.sub, .beneficios { display: none; }
+      .form-panel { padding: 20px 16px 32px; align-items: start; }
+      .tarjeta { padding: 22px 18px; }
+    }
+    @media (max-width: 380px) { .roles { grid-template-columns: 1fr; } .rol label { min-height: 0; } }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  </style>
+</head>
+<body>
+  <!-- Iconos SVG (Lucide) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-sprout" viewBox="0 0 24 24"><path d="M7 20h10"/><path d="M10 20c5.5-2.5.8-6.4 3-10"/><path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z"/><path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z"/></symbol>
+    <symbol id="i-package" viewBox="0 0 24 24"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></symbol>
+    <symbol id="i-bag" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></symbol>
+    <symbol id="i-store" viewBox="0 0 24 24"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></symbol>
+  </svg>
+
+  <main class="pantalla">
+    <!-- Marca -->
+    <section class="marca-panel" aria-label="Presentacion">
+      <div class="marca">
+        <span class="logo"><svg class="i"><use href="#i-sprout"/></svg></span>
+        Kit de Huerto Urbano
+      </div>
+      <h1>Cultiva tus hierbas en casa, sin saber nada.</h1>
+      <p class="sub">Un kit listo para usar: abres la caja, sigues la guia y en pocas semanas tienes hierbas frescas.</p>
+      <ul class="beneficios">
+        <li><span class="ico"><svg class="i"><use href="#i-package"/></svg></span>Semillas, tierra y maceta en una sola caja</li>
+        <li><span class="ico"><svg class="i"><use href="#i-book"/></svg></span>Guia impresa paso a paso para no fallar</li>
+        <li><span class="ico"><svg class="i"><use href="#i-home"/></svg></span>Pensado para departamentos y espacios pequenos</li>
+      </ul>
+    </section>
+
+    <!-- Formulario -->
+    <section class="form-panel">
+      <div class="tarjeta">
+        <div class="tabs" role="tablist" aria-label="Acceso">
+          <button class="tab" role="tab" id="tab-login" aria-selected="true" aria-controls="vista-login">Iniciar sesion</button>
+          <button class="tab" role="tab" id="tab-registro" aria-selected="false" aria-controls="vista-registro" tabindex="-1">Crear cuenta</button>
+        </div>
+
+        <!-- LOGIN -->
+        <form id="vista-login" role="tabpanel" aria-labelledby="tab-login" novalidate>
+          <h2>Bienvenido de nuevo</h2>
+          <p class="lead">Entra para comprar tus kits o administrar tu tienda.</p>
+          <div class="alerta" id="login-alerta" role="alert"></div>
+
+          <div class="campo">
+            <label for="l-email">Correo electronico</label>
+            <input id="l-email" type="email" autocomplete="email" inputmode="email" required aria-describedby="l-email-err">
+            <p class="err" id="l-email-err"></p>
+          </div>
+          <div class="campo">
+            <label for="l-pass">Contrasena</label>
+            <div class="entrada">
+              <input id="l-pass" class="con-boton" type="password" autocomplete="current-password" required aria-describedby="l-pass-err">
+              <button type="button" class="ojo" data-ojo="l-pass" aria-label="Mostrar contrasena" aria-pressed="false"><svg class="i"><use href="#i-eye"/></svg></button>
+            </div>
+            <p class="err" id="l-pass-err"></p>
+          </div>
+          <button class="boton" type="submit" id="login-btn">Entrar</button>
+          <p class="pie">¿Aun no tienes cuenta? <a href="#registro" data-ir="registro">Crear cuenta</a></p>
+        </form>
+
+        <!-- REGISTRO -->
+        <form id="vista-registro" role="tabpanel" aria-labelledby="tab-registro" hidden novalidate>
+          <h2>Crea tu cuenta</h2>
+          <p class="lead">Es gratis y toma menos de un minuto.</p>
+          <div class="alerta" id="reg-alerta" role="alert"></div>
+
+          <fieldset>
+            <legend>¿Como quieres usar la tienda?</legend>
+            <div class="roles">
+              <div class="rol">
+                <input type="radio" name="rol" id="rol-comprador" value="comprador" checked>
+                <label for="rol-comprador"><svg class="i"><use href="#i-bag"/></svg><strong>Comprador</strong><span>Quiero comprar kits</span></label>
+              </div>
+              <div class="rol">
+                <input type="radio" name="rol" id="rol-vendedor" value="vendedor">
+                <label for="rol-vendedor"><svg class="i"><use href="#i-store"/></svg><strong>Vendedor</strong><span>Quiero vender mis kits</span></label>
+              </div>
+            </div>
+          </fieldset>
+
+          <div class="campo">
+            <label for="r-nombre" id="r-nombre-label">Nombre</label>
+            <input id="r-nombre" type="text" autocomplete="name" maxlength="80" required aria-describedby="r-nombre-err">
+            <p class="err" id="r-nombre-err"></p>
+          </div>
+          <div class="campo">
+            <label for="r-email">Correo electronico</label>
+            <input id="r-email" type="email" autocomplete="email" inputmode="email" required aria-describedby="r-email-err">
+            <p class="err" id="r-email-err"></p>
+          </div>
+          <div class="campo">
+            <label for="r-pass">Contrasena</label>
+            <div class="entrada">
+              <input id="r-pass" class="con-boton" type="password" autocomplete="new-password" required aria-describedby="r-pass-ayuda r-pass-err">
+              <button type="button" class="ojo" data-ojo="r-pass" aria-label="Mostrar contrasena" aria-pressed="false"><svg class="i"><use href="#i-eye"/></svg></button>
+            </div>
+            <p class="ayuda" id="r-pass-ayuda">Minimo 6 caracteres.</p>
+            <p class="err" id="r-pass-err"></p>
+          </div>
+          <button class="boton" type="submit" id="reg-btn">Crear cuenta</button>
+          <p class="pie">¿Ya tienes cuenta? <a href="#login" data-ir="login">Iniciar sesion</a></p>
+        </form>
+
+        <p class="pie"><a href="/tienda.html">Ver el catalogo sin cuenta</a></p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const $ = id => document.getElementById(id);
+    const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+    // ---------- Pestanas ----------
+    function mostrar(cual, enfocar = true) {
+      const login = cual === 'login';
+      $('vista-login').hidden = !login;
+      $('vista-registro').hidden = login;
+      $('tab-login').setAttribute('aria-selected', login);
+      $('tab-registro').setAttribute('aria-selected', !login);
+      $('tab-login').tabIndex = login ? 0 : -1;
+      $('tab-registro').tabIndex = login ? -1 : 0;
+      history.replaceState(null, '', login ? '#login' : '#registro');
+      if (enfocar) (login ? $('l-email') : $('r-nombre')).focus();
+    }
+    $('tab-login').onclick = () => mostrar('login');
+    $('tab-registro').onclick = () => mostrar('registro');
+    document.querySelectorAll('[data-ir]').forEach(a => a.onclick = e => { e.preventDefault(); mostrar(a.dataset.ir); });
+    document.querySelector('.tabs').addEventListener('keydown', e => {   // flechas entre pestanas
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        const otro = $('tab-login').getAttribute('aria-selected') === 'true' ? 'registro' : 'login';
+        mostrar(otro, false); $('tab-' + otro).focus();
+      }
+    });
+
+    // Nombre segun el rol
+    document.querySelectorAll('input[name=rol]').forEach(r => r.onchange = () => {
+      $('r-nombre-label').textContent = r.value === 'vendedor' ? 'Nombre de tu tienda' : 'Nombre';
+    });
+
+    // Mostrar / ocultar contrasena
+    document.querySelectorAll('[data-ojo]').forEach(b => b.onclick = () => {
+      const input = $(b.dataset.ojo);
+      const ver = input.type === 'password';
+      input.type = ver ? 'text' : 'password';
+      b.setAttribute('aria-pressed', ver);
+      b.setAttribute('aria-label', ver ? 'Ocultar contrasena' : 'Mostrar contrasena');
+      b.querySelector('use').setAttribute('href', ver ? '#i-eye-off' : '#i-eye');
+    });
+
+    // ---------- Validacion ----------
+    function validar(input, msg) {
+      $(input.id + '-err').textContent = msg || '';
+      input.setAttribute('aria-invalid', msg ? 'true' : 'false');
+      return !msg;
+    }
+    const reglas = {
+      'l-email': v => !v.trim() ? 'Escribe tu correo.' : !EMAIL.test(v.trim()) ? 'Revisa el correo (ejemplo: nombre@correo.com).' : '',
+      'l-pass': v => !v ? 'Escribe tu contrasena.' : '',
+      'r-nombre': v => !v.trim() ? 'Escribe tu nombre.' : '',
+      'r-email': v => !v.trim() ? 'Escribe tu correo.' : !EMAIL.test(v.trim()) ? 'Revisa el correo (ejemplo: nombre@correo.com).' : '',
+      'r-pass': v => v.length < 6 ? 'Usa al menos 6 caracteres.' : ''
+    };
+    Object.keys(reglas).forEach(id => {
+      $(id).addEventListener('blur', () => validar($(id), reglas[id]($(id).value)));
+      $(id).addEventListener('input', () => { if ($(id).getAttribute('aria-invalid') === 'true') validar($(id), reglas[id]($(id).value)); });
+    });
+    function validarForm(ids) {
+      let primero = null;
+      ids.forEach(id => { if (!validar($(id), reglas[id]($(id).value)) && !primero) primero = $(id); });
+      if (primero) primero.focus();
+      return !primero;
+    }
+
+    // ---------- Envio ----------
+    async function enviar(url, cuerpo, boton, alerta, textoCarga, textoNormal) {
+      alerta.textContent = '';
+      boton.disabled = true; boton.textContent = textoCarga;
+      try {
+        const r = await fetch(url, { method: 'POST', body: JSON.stringify(cuerpo) });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || 'Ocurrio un error. Intenta de nuevo.');
+        irATienda(d);
+      } catch (e) {
+        alerta.textContent = e.message;
+        boton.disabled = false; boton.textContent = textoNormal;
+      }
+    }
+    function irATienda(u) { location.href = u.rol === 'vendedor' ? '/tienda.html#panel' : '/tienda.html'; }
+
+    $('vista-login').addEventListener('submit', e => {
+      e.preventDefault();
+      if (!validarForm(['l-email', 'l-pass'])) return;
+      enviar('/api/login', { email: $('l-email').value, password: $('l-pass').value }, $('login-btn'), $('login-alerta'), 'Entrando...', 'Entrar');
+    });
+    $('vista-registro').addEventListener('submit', e => {
+      e.preventDefault();
+      if (!validarForm(['r-nombre', 'r-email', 'r-pass'])) return;
+      enviar('/api/registro', {
+        rol: document.querySelector('input[name=rol]:checked').value,
+        nombre: $('r-nombre').value, email: $('r-email').value, password: $('r-pass').value
+      }, $('reg-btn'), $('reg-alerta'), 'Creando cuenta...', 'Crear cuenta');
+    });
+
+    // ---------- Inicio: si ya hay sesion, pasa directo a la tienda ----------
+    mostrar(location.hash === '#registro' ? 'registro' : 'login', false);
+    fetch('/api/yo').then(r => r.json()).then(u => { if (u) irATienda(u); }).catch(() => {});
+  </script>
+</body>
+</html>
